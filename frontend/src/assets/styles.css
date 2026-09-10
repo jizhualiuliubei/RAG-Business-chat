@@ -1,0 +1,217 @@
+/* ============================================================
+   全局设计系统 - AI 企业知识库工作台
+   克制企业 SaaS：冷静、清楚、耐看
+   ============================================================ */
+
+:root {
+  /* ---- 品牌色 ---- */
+  --kb-graphite: #14171f;
+  --kb-graphite-soft: #272b35;
+  --kb-primary: #2454d6;
+  --kb-primary-dark: #193fa8;
+  --kb-primary-light: #dbe5ff;
+  --kb-primary-faint: #f4f7ff;
+  --kb-accent-teal: #0f766e;
+  --kb-accent-teal-soft: #d9f4ef;
+  --kb-accent-amber: #a16207;
+  --kb-primary-gradient: linear-gradient(135deg, #14171f 0%, #2454d6 100%);
+
+  /* ---- 背景和表面 ---- */
+  --kb-bg: #f5f7fb;
+  --kb-bg-elevated: #ffffff;
+  --kb-surface: rgba(255, 255, 255, 0.9);
+  --kb-surface-solid: #ffffff;
+  --kb-surface-hover: #f8faff;
+  --kb-glass: rgba(255, 255, 255, 0.78);
+
+  /* ---- 文本 ---- */
+  --kb-text: #171a22;
+  --kb-text-secondary: #555f73;
+  --kb-text-muted: #8b95a7;
+
+  /* ---- 边框和分割线 ---- */
+  --kb-border: rgba(23, 26, 34, 0.12);
+  --kb-border-light: rgba(23, 26, 34, 0.08);
+  --kb-border-strong: rgba(23, 26, 34, 0.18);
+
+  /* ---- 功能色 ---- */
+  --kb-success: #10b981;
+  --kb-warning: #f59e0b;
+  --kb-danger: #ef4444;
+
+  /* ---- 圆角（克制，不浮夸）---- */
+  --kb-radius-sm: 6px;
+  --kb-radius: 8px;
+  --kb-radius-lg: 12px;
+  --kb-radius-xl: 16px;
+
+  /* ---- 阴影 ---- */
+  --kb-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --kb-shadow: 0 10px 30px rgba(15, 23, 42, 0.055);
+  --kb-shadow-lg: 0 20px 56px rgba(15, 23, 42, 0.085);
+  --kb-shadow-evidence: 0 16px 40px rgba(36, 84, 214, 0.1);
+
+  /* ---- 动效（150-300ms，只用 transform/opacity）---- */
+  --kb-duration: 0.22s;
+  --kb-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* 定制 Element Plus 主题色（主色跟随设计系统） */
+:root {
+  --el-color-primary: #2454d6;
+  --el-color-primary-light-3: #5b7ce2;
+  --el-color-primary-light-5: #8aa3eb;
+  --el-color-primary-light-7: #bac9f4;
+  --el-color-primary-light-8: #d1dbf8;
+  --el-color-primary-light-9: #f4f7ff;
+  --el-color-primary-dark-2: #193fa8;
+  --el-border-radius-base: 8px;
+  --el-font-size-base: 14px;
+  --el-border-color: rgba(39, 39, 42, 0.13);
+  --el-fill-color-light: #f6f8fc;
+}
+
+/* 基础重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  color: var(--kb-text);
+  background:
+    linear-gradient(180deg, #f8fafd 0%, #f3f6fb 100%);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(36, 84, 214, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(36, 84, 214, 0.028) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: linear-gradient(to bottom, black, transparent 72%);
+  opacity: 0.32;
+  z-index: -1;
+}
+
+::selection {
+  background: rgba(36, 84, 214, 0.18);
+  color: var(--kb-text);
+}
+
+button,
+.el-button,
+.el-input__wrapper,
+.el-select__wrapper,
+.el-textarea__inner {
+  transition:
+    border-color var(--kb-duration) var(--kb-ease),
+    box-shadow var(--kb-duration) var(--kb-ease),
+    background var(--kb-duration) var(--kb-ease),
+    transform var(--kb-duration) var(--kb-ease);
+}
+
+button:active,
+.el-button:active {
+  transform: translateY(1px);
+}
+
+.el-table {
+  --el-table-header-bg-color: #f8fafc;
+  --el-table-header-text-color: #667085;
+  --el-table-row-hover-bg-color: #f6f8ff;
+  --el-table-border-color: rgba(23, 26, 34, 0.08);
+  color: var(--kb-text-secondary);
+}
+
+.el-table th.el-table__cell {
+  font-weight: 740;
+}
+
+.el-table .cell {
+  line-height: 1.55;
+}
+
+.el-dialog,
+.el-drawer {
+  --el-dialog-border-radius: 14px;
+}
+
+/* 精致滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+  background-clip: content-box;
+}
+
+/* 打字光标闪烁动画（AI 回答生成时） */
+@keyframes kb-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.kb-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  margin-left: 2px;
+  background: var(--kb-primary);
+  vertical-align: text-bottom;
+  animation: kb-blink 0.8s step-end infinite;
+}
+
+/* 消息入场（轻微上滑 + 淡入） */
+@keyframes kb-message-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.kb-message-enter {
+  animation: kb-message-in 0.25s var(--kb-ease) both;
+}
+
+@keyframes kb-float-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes kb-soft-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.24); }
+  70% { box-shadow: 0 0 0 10px rgba(15, 118, 110, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(15, 118, 110, 0); }
+}
+
+@keyframes kb-scan {
+  from { transform: translateX(-42%); opacity: 0; }
+  20% { opacity: 0.5; }
+  to { transform: translateX(142%); opacity: 0; }
+}
+
+/* 空状态渐变呼吸 */
+@keyframes kb-breathe {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+.kb-breathe {
+  animation: kb-breathe 3s ease-in-out infinite;
+}

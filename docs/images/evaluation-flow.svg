@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-label="evaluation flow">
+  <defs><style>.bg{fill:#f9fbff}.title{font:700 28px Arial,"Microsoft YaHei";fill:#0f172a}.box{fill:#fff;stroke:#d7e5f4;stroke-width:1.5;rx:18}.h{font:700 15px Arial,"Microsoft YaHei";fill:#12304f}.t{font:12.5px Arial,"Microsoft YaHei";fill:#536173}.line{stroke:#42688d;stroke-width:2;fill:none;marker-end:url(#a)}</style><marker id="a" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M2,2 L10,6 L2,10" fill="#42688d"/></marker></defs>
+  <rect width="1200" height="520" class="bg"/><text x="54" y="54" class="title">RAG 评测任务流程</text>
+  <g transform="translate(70,135)"><rect width="150" height="110" class="box"/><text x="28" y="38" class="h">选择题集</text><text x="28" y="70" class="t">builtin / uploaded</text><text x="28" y="92" class="t">human reviewed</text></g>
+  <g transform="translate(270,135)"><rect width="150" height="110" class="box"/><text x="28" y="38" class="h">创建任务</text><text x="28" y="70" class="t">retrieval / full</text><text x="28" y="92" class="t">记录企业与用户</text></g>
+  <g transform="translate(470,135)"><rect width="150" height="110" class="box"/><text x="28" y="38" class="h">逐题检索</text><text x="28" y="70" class="t">Top-K / 章节</text><text x="28" y="92" class="t">证据命中</text></g>
+  <g transform="translate(670,135)"><rect width="150" height="110" class="box"/><text x="28" y="38" class="h">模型回答</text><text x="28" y="70" class="t">full 模式</text><text x="28" y="92" class="t">引用约束</text></g>
+  <g transform="translate(870,135)"><rect width="150" height="110" class="box"/><text x="28" y="38" class="h">自动评分</text><text x="28" y="70" class="t">答案覆盖</text><text x="28" y="92" class="t">拒答正确</text></g>
+  <g transform="translate(520,335)"><rect width="170" height="90" class="box"/><text x="30" y="36" class="h">报告下载</text><text x="30" y="66" class="t">指标 / 失败原因 / 样例</text></g>
+  <path d="M220 190 L270 190" class="line"/><path d="M420 190 L470 190" class="line"/><path d="M620 190 L670 190" class="line"/><path d="M820 190 L870 190" class="line"/><path d="M945 245 C945 375 740 380 690 380" class="line"/>
+</svg>

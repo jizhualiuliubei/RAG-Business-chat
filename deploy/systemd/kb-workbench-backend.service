@@ -1,0 +1,16 @@
+[Unit]
+Description=AI Knowledge Base Workbench FastAPI Backend
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/langchain-chat-master/backend
+EnvironmentFile=/opt/langchain-chat-master/.env
+ExecStart=/opt/miniconda3/envs/langchain1.2/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
