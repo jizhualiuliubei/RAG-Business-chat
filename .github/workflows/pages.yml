@@ -29,6 +29,9 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
+        with:
+          # 仓库尚未启用 Pages 时自动创建站点，省去手动在 Settings 里切换发布源
+          enablement: true
 
       - name: Upload showcase as Pages artifact
         uses: actions/upload-pages-artifact@v3
