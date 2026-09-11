@@ -9,6 +9,9 @@
 [![在线体验](https://img.shields.io/badge/%E5%9C%A8%E7%BA%BF%E4%BD%93%E9%AA%8C-118.31.45.253-2454d6?style=for-the-badge)](http://118.31.45.253/)
 [![项目展示站](https://img.shields.io/badge/%E9%A1%B9%E7%9B%AE%E5%B1%95%E7%A4%BA%E7%AB%99-GitHub_Pages-14171f?style=for-the-badge)](https://jizhualiuliubei.github.io/RAG-Business-chat/)
 
+**线上体验**　[http://118.31.45.253/](http://118.31.45.253/)  
+**项目展示站**　[https://jizhualiuliubei.github.io/RAG-Business-chat/](https://jizhualiuliubei.github.io/RAG-Business-chat/)
+
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square)
 ![LangChain](https://img.shields.io/badge/LangChain-1.2-1C3C3C?style=flat-square)
 ![Vue3](https://img.shields.io/badge/Vue3-4FC08D?style=flat-square)
