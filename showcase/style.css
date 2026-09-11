@@ -66,6 +66,7 @@ body {
 }
 
 a { color: inherit; text-decoration: none; }
+code { overflow-wrap: anywhere; }
 img { display: block; max-width: 100%; }
 
 h1, h2, h3 { margin: 0; letter-spacing: -0.01em; }
@@ -179,7 +180,7 @@ p { margin: 0; }
 
 .hero-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 56px;
   align-items: center;
 }
@@ -324,7 +325,7 @@ p { margin: 0; }
 
 .diff-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
 }
 
@@ -371,7 +372,7 @@ p { margin: 0; }
 
 .gallery {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
 }
 
@@ -399,7 +400,7 @@ p { margin: 0; }
 
 .flow {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 320px minmax(0, 1fr);
   gap: 22px;
   align-items: start;
 }
@@ -441,6 +442,46 @@ p { margin: 0; }
 .panel h3 { font-size: 22px; font-weight: 800; color: var(--kb-graphite); }
 .panel > p { margin-top: 12px; font-size: 14.5px; line-height: 1.85; color: var(--kb-text-secondary); }
 
+/* 面试式技术说明：问题 / 方案 / 取舍 / 局限 */
+.note {
+  margin-top: 16px;
+  border-radius: var(--kb-radius-sm);
+  padding: 13px 16px;
+  font-size: 14px;
+  line-height: 1.8;
+  border: 1px solid var(--kb-border-light);
+  background: var(--kb-surface-hover);
+  color: var(--kb-text-secondary);
+}
+
+.note b { display: block; margin-bottom: 5px; font-size: 13px; letter-spacing: .02em; }
+.note.problem { background: #fdf6ec; border-color: #f0dcbc; }
+.note.problem b { color: var(--kb-accent-amber); }
+.note.why { background: var(--kb-primary-faint); border-color: var(--kb-primary-light); }
+.note.why b { color: var(--kb-primary); }
+.note.limit { background: var(--kb-accent-teal-soft); border-color: #b6e6dc; }
+.note.limit b { color: var(--kb-accent-teal); }
+.note code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12.5px;
+  background: #fff;
+  border: 1px solid var(--kb-border-light);
+  border-radius: 5px;
+  padding: 1px 5px;
+  color: var(--kb-primary-dark);
+}
+
+.panel .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.panel .tag {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--kb-primary-dark);
+  background: var(--kb-primary-faint);
+  border: 1px solid var(--kb-primary-light);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
 .panel ul { margin: 18px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 
 .panel li {
@@ -470,7 +511,7 @@ p { margin: 0; }
 
 .diagrams {
   display: grid;
-  grid-template-columns: 230px 1fr;
+  grid-template-columns: 230px minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
@@ -514,7 +555,7 @@ p { margin: 0; }
 
 .quick-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
 }
 
@@ -585,10 +626,12 @@ p { margin: 0; }
   border-radius: var(--kb-radius);
   background: var(--kb-surface);
   box-shadow: var(--kb-shadow-sm);
-  overflow: hidden;
+  /* 窄屏下表格自己横向滚动，不把整页撑出横向滚动条 */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-.table-card table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table-card table { width: 100%; min-width: 620px; border-collapse: collapse; font-size: 14px; }
 
 .table-card th,
 .table-card td {
@@ -650,10 +693,10 @@ p { margin: 0; }
 @media (max-width: 980px) {
   .nav-links { display: none; }
   .hero { padding: 52px 0 60px; }
-  .hero-grid, .flow, .diagrams, .diff-grid, .quick-grid { grid-template-columns: 1fr; }
+  .hero-grid, .flow, .diagrams, .diff-grid, .quick-grid { grid-template-columns: minmax(0, 1fr); }
   .hero-grid { gap: 34px; }
-  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 18px; }
-  .doc-grid { grid-template-columns: repeat(2, 1fr); }
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .doc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .section { padding: 62px 0; }
   .cta { flex-direction: column; align-items: flex-start; padding: 34px; }
 }
@@ -666,7 +709,7 @@ p { margin: 0; }
   .hero h1 { font-size: 32px; }
   .hero-lead { font-size: 15.5px; }
   .hero-actions .btn { flex: 1 1 100%; }
-  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stat b { font-size: 27px; }
   .doc-grid { grid-template-columns: 1fr; }
   .panel { padding: 20px; min-height: 0; }
