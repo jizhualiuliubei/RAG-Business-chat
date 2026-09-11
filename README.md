@@ -4,7 +4,7 @@
 
 **企业级 AI 知识库工作台**
 
-多企业 SaaS 隔离 · 结构化 RAG · 会话附件理解 · 企业级 Key 路由 · 360 题评测闭环
+多企业 SaaS 隔离 · 结构化 RAG · 引用溯源 · 会话附件理解 · 360 题评测闭环
 
 [![在线体验](https://img.shields.io/badge/%E5%9C%A8%E7%BA%BF%E4%BD%93%E9%AA%8C-118.31.45.253-2454d6?style=for-the-badge)](http://118.31.45.253/)
 [![项目展示站](https://img.shields.io/badge/%E9%A1%B9%E7%9B%AE%E5%B1%95%E7%A4%BA%E7%AB%99-GitHub_Pages-14171f?style=for-the-badge)](https://jizhualiuliubei.github.io/RAG-Business-chat/)
@@ -21,21 +21,23 @@
 
 ---
 
-## 这个项目解决什么问题
+## 项目定位
 
-企业内部制度通常散落在员工手册、薪酬绩效、采购付款、合同审批、信息安全、IT 运维等文档中。这类资料有几个共同特点，也是普通 RAG Demo 容易失效的地方：
+企业内部制度通常散落在员工手册、薪酬绩效、采购付款、合同审批、信息安全、IT 运维等文档中。这类资料有几个共同特点，也是通用 RAG 方案容易失效的地方：
 
 - 提问常带**条款号、角色、金额、时间、流程节点**等硬信息，纯向量语义容易把短编号稀释掉。
 - 正确答案往往**跨多个文档**，单个 Top-K 结果覆盖不全证据。
 - **表格和扫描 PDF 很常见**，解析质量直接决定检索质量。
 - 企业数据、员工会话、上传附件和模型 Key **必须隔离**。
-- 效果需要**可量化评测**，不能只看几条演示样例。
+- 回答必须**可追溯**，引用要能对回原文。
 
-完整的代码级实现说明见 [技术说明页](https://jizhualiuliubei.github.io/RAG-Business-chat/technical.html)。
+项目围绕这些问题实现了一套可运行的端到端方案，完整的技术展开见[项目展示站](https://jizhualiuliubei.github.io/RAG-Business-chat/)。
+
+**目录**：[效果指标](#效果指标) · [RAG 六阶段](#rag-六阶段) · [架构选型](#架构选型agentic-workflow) · [记忆设计](#记忆设计) · [系统架构](#系统架构) · [界面预览](#界面预览) · [核心能力](#核心能力) · [文档导航](#文档导航)
 
 ## 效果指标
 
-内置 `enterprise_scale_360_v1` 基准题集，360 题分布：A 单文档事实 96 题、B 单文档细节与条款 60 题、C 跨文档关联 60 题、D 场景应用与计算 72 题、E 边界与易错 48 题、F 未覆盖与幻觉 24 题。full 模式结果：
+内置 `enterprise_scale_360_v1` 基准题集，360 题覆盖 A 到 F 六类：单文档事实 96 题、单文档细节与条款 60 题、跨文档关联 60 题、场景应用与规则计算 72 题、边界与易错 48 题、未覆盖与幻觉测试 24 题。full 模式结果：
 
 | 指标 | 结果 | 指标 | 结果 |
 | --- | ---: | --- | ---: |
@@ -45,92 +47,95 @@
 | Top-5 文档命中率 | **100.0%** | 引用正确率 | 100.0% |
 | 平均耗时 | 3461 ms | F 类拒答正确率 | 87.5%（21/24） |
 
-> **口径说明**：360 题中 `negative_case` 24 题（F 类，不参与检索命中率）、带 `required_citations` 336 题，
-> 所以 Top-1 / Top-3 的分母是 336 而非 360。以上数字来自一次 full 模式运行，
-> 但**仓库未提交对应的报告产物**（`reports/` 目前只有占位文件），复现需重新运行评测任务。
+评测支持 retrieval 与 full 两种模式，出逐题失败原因与修复建议，并可导出 Markdown 报告。指标分母按题型区分：24 道负例不参与检索命中率，带必需引用的 336 道构成 Top-K 的分母。
 
-## 四个关键差异
-
-| 差异点 | 具体做法 |
-| --- | --- |
-| **结构化切片** | 主策略是**整章独立成块**（`cut_by_heading`），不是固定窗口切分。结构头 `来源：{文档} > {章节} > {条款号}` 拼在正文前，让章节名与条款号同时进入向量语义和 BM25 字面匹配。`CHUNK_SIZE=350 / CHUNK_OVERLAP=80` 只作为单章超过 1200 字符时的兜底。 |
-| **混合检索 + 硬信号** | 向量（`candidate_k = max(top_k×8, 40)`）与全库 BM25 双通道召回，按 `0.4 × 向量 + 0.6 × BM25` 融合。条款号走正则精确召回并给 2.0 分，`《文档名》` 提及加权、限定词触发硬过滤。 |
-| **企业级 Key 路由与隔离** | DeepSeek 与 SiliconFlow Key 按企业加密保存、遮罩展示、支持连接测试。检索与删除始终带 `enterprise_id` + `kb_id` 过滤，另用数据库实时生成 `doc_id` 白名单兜住「DB 已删但向量残留」。普通企业缺 Key 时明确报错，不回退平台 Key。 |
-| **评测闭环** | 360 题基准 + retrieval / full 两种模式 + 逐题失败诊断 + Markdown 报告。评测链路额外有按 `required_citations` 的**多证据补召回**（注意：这一步只用于评测，线上问答链路没有）。 |
-
-## RAG 六阶段（关键参数）
+## RAG 六阶段
 
 | 阶段 | 核心实现 |
 | --- | --- |
-| **1 文档解析** | TXT/CSV 用 `utf-8-sig`；DOCX 读段落 + 表格；XLSX 首行当表头拼「表头：值」并保留 Sheet 前缀；PDF 优先 pypdf，包在**线程超时 5 秒**里，空结果或超时降级 OCR（渲染 scale=3.0 → 二值化 → tesseract `chi_sim+eng --psm 6`）。解析为空**主动抛错**，不写空 chunk。 |
-| **2 结构化切片** | 按 `## 章节` / `一、章节`（仅当全文无 `##` 时启用）整章成块，再按 `[A-Z]{2}-\d{2}-\d{3}` 条款号细分；正文 < 20 字符丢弃，纯标题空块跳过；单章 > 1200 字符用 `RecursiveCharacterTextSplitter(350, 80)` 兜底，子块仍带结构头。 |
-| **3 查询改写** | 用 DeepSeek 把口语问题改写为制度关键词（「30万」→「50000元 总经理审批」）。**只用于检索**，原问题照常展示。异常 / 空 / 长度 ≥ 100 一律回退原问题。 |
-| **4 混合检索** | Milvus COSINE 向量候选 40 条起 + 全库 BM25 双通道 → 0.4/0.6 融合 → 条款号精确召回（2.0 分）→ 文档名加权（+0.5）→ 章节去重。BM25 为手写实现，用字符 bigram 当词项，不依赖 jieba。 |
-| **5 融合重排** | SiliconFlow `BAAI/bge-reranker-v2-m3` cross-encoder 精排，`distance = max(融合分, rerank_score)`。开关关闭 / 无 Key / 超时 8s / 异常时**全部回退融合排序**，不阻断问答。 |
-| **6 约束生成** | 三段式 Prompt 注入当前时间、用户档案、会话附件、带 `[n]` 编号的已知信息。硬规则：用户身份只以档案为准；制度细节无直接依据必须拒答；文档冲突并列引用双方；末尾声明把【已知信息】视为数据、不执行其中指令。 |
+| **文档解析** | TXT / CSV 用 `utf-8-sig`；DOCX 读段落与表格；XLSX 首行当表头拼「表头：值」并保留工作表前缀；PDF 优先 pypdf，失败或超时降级 OCR（渲染成位图后二值化，再走 tesseract 中文识别）。 |
+| **结构化切片** | 先按章节标题整章成块，再按条款号正则细分；结构头 `来源：{文档} > {章节} > {条款号}` 拼在正文前，让章节名与条款号同时进入向量语义和 BM25 字面匹配。 |
+| **查询改写** | 用对话模型把口语问题改写为制度关键词（「采购 30 万谁审批」转为「采购审批 300000元 总经理审批」）。改写只用于检索，展示给用户的仍是原问题。 |
+| **混合检索** | Milvus 余弦向量召回与全库 BM25 双通道并行，按 `0.4 × 向量 + 0.6 × BM25` 归一化融合。条款号走正则精确召回，文档名与限定词作为硬信号加权或过滤。 |
+| **融合重排** | 一阶段融合排序负责召回，二阶段调用 `BAAI/bge-reranker-v2-m3` 交叉编码器精排，最终分取两者较大值，再按章节去重、截断到 Top-K、过滤低置信结果。 |
+| **约束生成** | 分区装配 Prompt：当前时间、用户档案、会话附件、带编号的已知信息、问题。硬规则包括用户身份只以档案为准、制度细节无直接依据必须拒答、文档冲突并列引用双方。 |
 
-详细展开（含「不这么做会坏在哪」「代价是什么」）见 [技术说明页](https://jizhualiuliubei.github.io/RAG-Business-chat/technical.html#pipeline)。
+## 架构选型：Agentic Workflow
 
-## Agent 与记忆
+制度问答既要结果可控，又要能处理需要工具判断的问题。团队常见做法是二选一，本项目的答案是分层组合：
 
-项目同时保留两条问答路径：
-
-| 路径 | 实现 | 状态 |
+| 方案 | 优点 | 取舍 |
 | --- | --- | --- |
-| **手动 RAG** | 代码控制「检索 → 拼上下文 → 生成」，流式直连底层 `model.stream()`（`create_agent.stream()` 不是真正的逐 token 流式）。 | 线上主路径 |
-| **Agent RAG** | `create_agent` + `@tool`：知识库检索 / 当前时间 / 用户档案，模型自主决定调用。 | 已实现，未接前端 |
-| **MCP Agent** | stdio 启动独立 MCP 服务子进程，加载计算器与日期工具。 | 已实现，未接前端 |
+| 全部交给 Workflow | 确定性最高，每一步可复现 | 流程只能穷举已知情况，遇到需要临时查时间、读档案的请求就无能为力 |
+| 全部交给 Agent | 灵活度高，能处理开放目标 | 行为难以复现，同一问题两次回答可能引用不同条款，而制度问答必须可追溯 |
+| **Agentic Workflow** | 骨架可控，关键节点灵活 | 需要明确划分哪些节点交给模型 |
 
-主流式链路读**全量**历史后，由 `rag.build_memory_history()` 统一做压缩与脱敏：
+本系统的实现分两层：
 
-- **摘要压缩（Summarization Compression）**：消息超过 `HISTORY_SUMMARY_TRIGGER_MESSAGES=6` 条时，把更早的历史用对话模型压成一段摘要，只保留最近 `HISTORY_SUMMARY_KEEP_MESSAGES=2` 条原文，以 `system` 消息注入（`【更早对话摘要】…`）。流式回答为了逐 token 输出走底层 `model.stream()`、不经过 Agent middleware，所以这一层在主链路上显式实现；摘要模型失败时回退本地截断，不影响问答可用性。
-- **历史消息 PII 脱敏**：`_sanitize_history` 过滤非 user/assistant/system 角色与空内容，并对每条历史做 email / IP 脱敏。数据库存的是原文，而中间件只脱敏「当次输入」，所以必须在读回历史时兜底。
-- **会话级用户档案**：用 `ToolStrategy` + Pydantic Schema 结构化抽取姓名/称呼/身份/偏好，写入 `user_profile` 表并在每轮问答注入，先做触发词预筛避免每条消息都调 LLM。
+- **Workflow 层**：`qa_service.stream_answer` 里的六阶段编排，检索、过滤、组装来源、生成、落库的顺序全部写在代码里。
+- **Agent 层**：`rag_agent.py` 中用 `create_agent` 挂载「知识库检索」「当前时间」「用户档案」三个工具得到的决策节点，由模型自主选择调用。
 
-> **如实说明**：`HISTORY_ROUNDS`（默认 10）现在只在 `config.py` 里定义、**没有任何地方读取**，是废弃配置；原先的滑动窗口已从主链路移除。另外 `user_profile` 的主键是 `conversation_id`，档案是**会话级**的，换会话不继承；`get_user_profile` 这个 `@tool` 是占位实现，真正的档案走 system prompt 注入。
+两条路径复用同一套混合检索，所以检索质量保持一致。另有 MCP 路径：通过 stdio 启动独立服务进程，把计算器与日期时间能力作为外部工具接入，工具能力与模型推理解耦。
+
+## 记忆设计
+
+对话历史是证据，结构化状态才是结论。系统按信息类型选择存储介质：结构化字段走关系库精确查，非结构化知识走向量库做语义检索。
+
+| 层次 | 实现 |
+| --- | --- |
+| **短期记忆** | 对话落库在 `message` 表，取用时做**滑动窗口 + 摘要压缩**：历史超过 `HISTORY_SUMMARY_TRIGGER_MESSAGES`（默认 6）条时，把更早的对话交给模型压成一段摘要，只保留最近 `HISTORY_SUMMARY_KEEP_MESSAGES`（默认 2）条原文。追问「那这个流程需要谁审批」这类省略主语的问题时，模型仍然知道上文。 |
+| **长期记忆** | 制度文档经解析、切片、向量化后写入 Zilliz / Milvus，按 chunk 粒度存储，每个切片带 `enterprise_id`、`kb_id`、`doc_id`、`source`、`chunk_id` 元数据。检索始终带企业与知识库过滤。 |
+| **实体记忆** | 用户主动提供的姓名、称呼、身份、偏好经 `ToolStrategy` 与 Pydantic Schema 抽成结构化字段写入 `user_profile`，每轮注入。写入前用触发词预筛，只对像自我陈述的消息调用模型。 |
+
+**上下文工程**：Prompt 按固定顺序装配。顶部注入当前日期时间，解决模型不知道「现在」的问题；随后是用户档案，无记录时显式写明，压缩编造空间；再接会话附件与已知信息，证据带 `[n]` 编号与出处；最后是用户问题。会话附件与知识库分区注入，冲突时要求并列说明差异。
 
 ## 系统架构
 
 ![系统整体架构](docs/images/system-architecture.svg)
 
-Vue3 + FastAPI 前后端分离。关系库兼容 SQLite / MySQL；向量库使用 Zilliz / Milvus 统一 collection `knowledge_chunks`（COSINE + HNSW，M=16、efConstruction=128），向量主键编码为 `id = doc_id × 100000 + chunk_index`。`enterprise_id` 是企业级隔离边界，`user_id` 是会话、消息与附件的隔离边界。
+Vue3 + FastAPI 前后端分离。关系库兼容 SQLite / MySQL；向量库使用 Zilliz / Milvus 统一 collection `knowledge_chunks`（余弦距离 + HNSW 索引），向量主键编码为 `doc_id × 100000 + chunk_index`，重复写入时幂等覆盖。
+
+隔离边界分两层：`enterprise_id` 是企业级边界，`user_id` 是会话、消息与附件的边界。检索与删除始终带企业与知识库过滤，问答前还会从数据库实时生成有效文档白名单，兜住「记录已删但向量残留」的脏数据。
 
 ## 界面预览
 
 | 问答与证据链 | 知识库治理 |
 | --- | --- |
 | ![带引用证据链的回答](showcase/assets/screenshots/home-chat.webp) | ![知识库与文档治理](showcase/assets/screenshots/knowledge-base.webp) |
-| **引用编号对应来源区**，可查看命中的知识库、文件名、片段与相似度 | **解析状态与失败原因直接暴露**，支持批量删除与向量同步清理 |
+| 引用编号对应来源区，可查看命中的知识库、文件名、片段与相似度 | 解析状态、切片数量与失败原因直接可见，支持批量删除 |
 
 | 企业级模型配置 | RAG 评测中心 |
 | --- | --- |
 | ![企业级模型 Key 配置](showcase/assets/screenshots/model-config.webp) | ![RAG 评测中心](showcase/assets/screenshots/evaluation-center.webp) |
-| **Key 加密存储、遮罩展示**，保存与连接测试分离 | **逐题诊断与报告下载**，任务按企业隔离 |
+| Key 按企业加密保存、遮罩展示，保存与连接测试分离 | 题集管理、逐题诊断与报告导出，任务按企业隔离 |
 
-更多界面见 [项目展示站](https://jizhualiuliubei.github.io/RAG-Business-chat/)。
+更多界面见[项目展示站](https://jizhualiuliubei.github.io/RAG-Business-chat/)。
 
-## 快速开始
+## 核心能力
 
-```bash
-# 1. 复制环境变量模板
-cp .env.example .env      # 需填写 DEEPSEEK_API_KEY / SILICONFLOW_API_KEY / Zilliz 连接信息
+| 能力 | 说明 |
+| --- | --- |
+| 多企业 SaaS | 系统管理员、企业管理员、企业员工三类角色；企业注册审核、启用禁用、软删除与代管形成完整闭环。 |
+| 企业级 Key 路由 | 对话模型与嵌入模型 Key 按企业配置、加密保存、遮罩展示、连接测试，并按企业路由。普通企业缺 Key 时明确提示配置。 |
+| 文档治理 | 支持 DOCX、PDF、扫描 PDF（OCR）、TXT、CSV、XLSX；上传后解析、结构化切片、向量入库、状态追踪，失败原因可排查。 |
+| 结构化 RAG | 保留文档名、章节、条款号、页码与工作表来源；查询改写、混合检索、重排与引用约束组合使用。 |
+| 会话附件 | 提问时上传的附件只属于当前账号当前会话，不进入企业知识库；附件来源与知识库来源分组展示。 |
+| Agent 与 MCP | 本地工具调用与 MCP 外部工具接入，工具只返回当前企业授权范围内的数据。 |
+| 记忆机制 | 滑动窗口与摘要压缩管理短期上下文，向量库承载长期知识，结构化档案保存用户稳定信息。 |
+| 评测中心 | 360 题基准、retrieval 与 full 双模式、逐题诊断、报告导出，任务与报告按企业隔离。 |
+| 审计中心 | 企业审核、状态变更、Key 更新、文档与评测删除等关键动作可追踪，日志不保存敏感明文。 |
 
-# 2. 启动后端
-cd backend
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
+## 文档导航
 
-# 3. 启动前端
-cd frontend
-npm install
-npm run dev -- --host 127.0.0.1 --port 5173
-```
-
-浏览器访问 `http://127.0.0.1:5173`。
-
-> 两个容易踩的坑：后端依赖装在 conda 环境 `langchain1.2` 中，可直接用该环境的 python；
-> 若 `npm install` 后提示找不到 vite，是 `NODE_ENV=production` 跳过了开发依赖，改用 `npm install --include=dev`。
-
-完整步骤、环境变量重点与线上部署见 [部署说明](docs/部署说明.md)。
+| 文档 | 内容 |
+| --- | --- |
+| [技术架构](docs/技术架构.md) | 前后端、模型、向量库、数据库与核心请求链路。 |
+| [RAG 机制说明](docs/RAG机制说明.md) | 解析、切片、查询改写、混合检索、重排与拒答。 |
+| [Agent 机制说明](docs/Agent机制说明.md) | 工具调用、MCP 接入、结构化输出与记忆机制。 |
+| [数据库设计](docs/数据库设计.md) | 数据表、字段、关系、企业隔离、软删除与审计日志。 |
+| [评测体系](docs/评测体系.md) | 题集构成、题型、指标口径与评测模式。 |
+| [使用说明](docs/使用说明.md) | 登录、企业管理、模型配置、知识库、问答、附件与评测中心操作。 |
+| [部署说明](docs/部署说明.md) | 本地运行、线上部署、Nginx 与 systemd 配置。 |
 
 ## 默认体验账号
 
@@ -139,44 +144,29 @@ npm run dev -- --host 127.0.0.1 --port 5173
 | `system` | `employee` | `employee123` | 系统员工体验账号 |
 | `system` | `admin` | `admin123` | 系统管理员 |
 
-> 公开演示环境中的账号和数据仅用于功能体验。模型 Key、数据库密码、Zilliz Token 等敏感配置不要提交到仓库。
+公开演示环境中的账号和数据仅用于功能体验。
 
-## 已知限制
+<details>
+<summary><b>技术栈与目录结构</b></summary>
 
-这些是读代码能核实到的真实边界，不是套话：
-
-| 项 | 现状 | 改进方向 |
-| --- | --- | --- |
-| 摘要压缩没有窗口上限 | `build_memory_history` 把「总消息数 − 2」条更早历史一次性交给模型，每轮重算、无截断、无缓存；且流式链路里它被调用了两次（第二次因消息数 ≤ 6 直接透传，冗余但无害）。 | 对 `older` 加窗口上限，或把摘要结果缓存到会话上复用。 |
-| `.xls` 实际不可解析 | 上传与附件白名单含 `.xls`，但都交给 openpyxl，而 openpyxl 只支持 `.xlsx` / `.xlsm`。 | 引入 `xlrd`，或把 `.xls` 移出白名单。 |
-| BM25 是全库扫描 | 每问拉取全库 chunk 建索引（上限 10000 条），为 ~73 块的小语料设计。 | 万级以内可用；十万级需换倒排索引或下沉到向量库侧。 |
-| 旧 collection 会跳过企业过滤 | `_describe_collection_fields` 探测字段，若 collection 没有 `enterprise_id`，企业过滤会静默跳过（为兼容旧集合不阻断上传）。 | 全新部署请确保 collection 已包含 `enterprise_id`。 |
-
-## 文档导航
-
-| 文档 | 内容 |
-| --- | --- |
-| [技术架构](docs/技术架构.md) | 前后端、模型、向量库、数据库与核心请求链路。 |
-| [RAG 机制说明](docs/RAG机制说明.md) | 解析、切片、查询改写、混合检索、Rerank、拒答。 |
-| [Agent 机制说明](docs/Agent机制说明.md) | `@tool`、MCP、`ToolStrategy`、记忆机制与 Agent 边界。 |
-| [数据库设计](docs/数据库设计.md) | 数据表、字段、关系、企业隔离、软删除与审计日志。 |
-| [评测体系](docs/评测体系.md) | 360 题基准、题型、指标口径与评测模式。 |
-| [部署说明](docs/部署说明.md) | 本地运行、线上部署、Nginx / systemd 与环境变量。 |
-| [使用说明](docs/使用说明.md) | 登录、企业管理、模型配置、知识库、问答、附件与评测中心操作。 |
-
-> 注：`docs/` 下的机制文档写作时间早于当前代码，部分参数（尤其是切片策略）与实现已有出入，
-> **以 [技术说明页](https://jizhualiuliubei.github.io/RAG-Business-chat/technical.html) 和代码为准**。
-
-## 目录结构
+**后端**：FastAPI · LangChain 1.2 · SQLAlchemy · Pydantic
+**模型**：DeepSeek（对话与查询改写）· BGE-M3（向量化）· bge-reranker-v2-m3（重排）
+**存储**：Zilliz / Milvus（向量）· SQLite / MySQL（关系）· MCP（外部工具）
+**前端**：Vue 3 · Element Plus · Vite
 
 ```text
 RAG-Business-chat/
 ├── backend/                 # FastAPI 后端服务
-├── frontend/                # Vue3 前端应用
+│   ├── app/api/             # 接口层
+│   ├── app/core/            # RAG、检索、切分、Agent、记忆
+│   ├── app/services/        # 业务编排
+│   └── mcp/                 # MCP 服务进程
+├── frontend/                # Vue 3 前端应用
 ├── data/enterprise_scale/   # 合成企业制度文档
 ├── evaluation/              # 评测题集与基准数据
 ├── deploy/                  # Nginx、systemd、生产环境模板
-├── docs/                    # 架构、数据库、RAG、Agent、评测文档
-├── showcase/                # GitHub Pages 展示站源码
-└── README.md
+├── docs/                    # 架构、RAG、Agent、数据库、评测、部署文档
+└── showcase/                # GitHub Pages 展示站
 ```
+
+</details>
