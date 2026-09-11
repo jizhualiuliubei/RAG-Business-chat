@@ -50,7 +50,7 @@ assert.ok(sidebar.includes('width: 264px'), 'Sidebar should use the current brea
 assert.ok(!sidebar.includes('capability-strip'), 'Sidebar should not show non-actionable capability chips.')
 
 assert.ok(chatArea.includes('min-height: 68px'), 'Chat header should keep the current breathable compact height.')
-assert.ok(chatArea.includes('min-height: 76px'), 'Question input should stay comfortable without dominating the viewport.')
+assert.ok(chatArea.includes('min-height: 88px'), 'Question input should stay comfortable without dominating the viewport.')
 assert.ok(dashboard.includes('知识治理驾驶舱'), 'Dashboard should use a higher-end Chinese SaaS title.')
 assert.ok(styles.includes('--kb-graphite'), 'Global design system should define graphite token.')
 assert.ok(styles.includes('--kb-accent-teal'), 'Global design system should define teal accent token.')
