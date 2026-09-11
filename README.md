@@ -81,13 +81,13 @@
 | **Agent RAG** | `create_agent` + `@tool`：知识库检索 / 当前时间 / 用户档案，模型自主决定调用。 | 已实现，未接前端 |
 | **MCP Agent** | stdio 启动独立 MCP 服务子进程，加载计算器与日期工具。 | 已实现，未接前端 |
 
-上下文由三层管理：
+主流式链路读**全量**历史后，由 `rag.build_memory_history()` 统一做压缩与脱敏：
 
-- **滑动窗口（Sliding Window）**：`HISTORY_ROUNDS=10`，只取最近 10 轮（20 条）消息注入 prompt，把上下文长度与成本固定住。
-- **摘要压缩（Summarization Compression）**：`SummarizationMiddleware(trigger=6 条, keep=2 条)`，超过阈值时用对话模型压缩历史并保留最近 2 条原文。
-- **长期用户档案**：用 `ToolStrategy` + Pydantic Schema 结构化抽取姓名/称呼/身份/偏好，写入 `user_profile` 表并在每轮问答注入，先做触发词预筛避免每条消息都调 LLM。
+- **摘要压缩（Summarization Compression）**：消息超过 `HISTORY_SUMMARY_TRIGGER_MESSAGES=6` 条时，把更早的历史用对话模型压成一段摘要，只保留最近 `HISTORY_SUMMARY_KEEP_MESSAGES=2` 条原文，以 `system` 消息注入（`【更早对话摘要】…`）。流式回答为了逐 token 输出走底层 `model.stream()`、不经过 Agent middleware，所以这一层在主链路上显式实现；摘要模型失败时回退本地截断，不影响问答可用性。
+- **历史消息 PII 脱敏**：`_sanitize_history` 过滤非 user/assistant/system 角色与空内容，并对每条历史做 email / IP 脱敏。数据库存的是原文，而中间件只脱敏「当次输入」，所以必须在读回历史时兜底。
+- **会话级用户档案**：用 `ToolStrategy` + Pydantic Schema 结构化抽取姓名/称呼/身份/偏好，写入 `user_profile` 表并在每轮问答注入，先做触发词预筛避免每条消息都调 LLM。
 
-> **如实说明**：摘要压缩目前只挂在 Agent 路径上；线上主问答链路走的是滑动窗口。另外 `user_profile` 的主键是 `conversation_id`，档案是**会话级**的，换会话不继承。
+> **如实说明**：`HISTORY_ROUNDS`（默认 10）现在只在 `config.py` 里定义、**没有任何地方读取**，是废弃配置；原先的滑动窗口已从主链路移除。另外 `user_profile` 的主键是 `conversation_id`，档案是**会话级**的，换会话不继承；`get_user_profile` 这个 `@tool` 是占位实现，真正的档案走 system prompt 注入。
 
 ## 系统架构
 
@@ -147,7 +147,7 @@ npm run dev -- --host 127.0.0.1 --port 5173
 
 | 项 | 现状 | 改进方向 |
 | --- | --- | --- |
-| 摘要压缩未覆盖主流式链路 | 中间件只挂在 Agent 路径；前端实际走的 `/qa/ask-stream` 直连模型，不经过中间件，历史消息的 PII 脱敏同样只做在 Agent 路径。 | 把中间件逻辑下沉到流式链路，或流式前先对窗口内消息做一次摘要。 |
+| 摘要压缩没有窗口上限 | `build_memory_history` 把「总消息数 − 2」条更早历史一次性交给模型，每轮重算、无截断、无缓存；且流式链路里它被调用了两次（第二次因消息数 ≤ 6 直接透传，冗余但无害）。 | 对 `older` 加窗口上限，或把摘要结果缓存到会话上复用。 |
 | `.xls` 实际不可解析 | 上传与附件白名单含 `.xls`，但都交给 openpyxl，而 openpyxl 只支持 `.xlsx` / `.xlsm`。 | 引入 `xlrd`，或把 `.xls` 移出白名单。 |
 | BM25 是全库扫描 | 每问拉取全库 chunk 建索引（上限 10000 条），为 ~73 块的小语料设计。 | 万级以内可用；十万级需换倒排索引或下沉到向量库侧。 |
 | 旧 collection 会跳过企业过滤 | `_describe_collection_fields` 探测字段，若 collection 没有 `enterprise_id`，企业过滤会静默跳过（为兼容旧集合不阻断上传）。 | 全新部署请确保 collection 已包含 `enterprise_id`。 |

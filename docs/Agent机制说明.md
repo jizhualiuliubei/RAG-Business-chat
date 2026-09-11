@@ -6,8 +6,8 @@
 
 | 链路 | 入口 | 特点 |
 | --- | --- | --- |
-| 手动 RAG | `/api/qa/ask`、`/api/qa/ask-stream` | 后端固定执行检索、重排、拼上下文和生成，稳定可控，是首页默认主链路。 |
-| Agent RAG | `/api/qa/agent-ask` | 模型拿到工具后自主决定是否检索、查时间、读取用户档案，适合作为可扩展 Agent 能力。 |
+| 手动 RAG | `/api/qa/ask-stream`（前端实际入口） | 后端固定执行检索、重排、拼上下文和生成，稳定可控，是首页默认主链路。非流式的 `/api/qa/ask` 已实现但无前端入口，前端只调用 `/api/qa/ask-stream` 和 `/api/conversations/{id}/save-turn`。 |
+| Agent RAG | `/api/qa/agent-ask` | 模型拿到工具后自主决定是否检索、查时间、调用工具，适合作为可扩展 Agent 能力。 |
 
 企业制度问答默认使用手动 RAG，是因为它更容易控制证据、引用、拒答和评测。Agent RAG 作为扩展链路，用于展示工具调用、规划和多能力组合。
 
@@ -19,7 +19,7 @@
 | --- | --- | --- |
 | `search_knowledge_base` | `query: str` | 检索当前企业当前知识库，返回带编号的证据片段。 |
 | `get_current_time` | 无 | 返回当前日期时间，用于回答今天、几号、星期几等问题。 |
-| `get_user_profile` | `question: str` | 读取用户档案相关信息。当前主要通过 prompt 注入档案，工具作为显式能力存在。 |
+| `get_user_profile` | `question: str` | 占位实现，固定返回“用户档案：暂无额外信息（由系统在提示词中注入）”。真正的档案由调用方通过 system prompt 注入，工具仅作为显式能力存在。 |
 
 工具注册方式：
 
@@ -70,13 +70,13 @@ Agent 的规划机制主要来自模型对系统提示词和工具描述的理�
 
 本项目的记忆不是单纯一种机制，而是四层组合。
 
-### 1. 最近 N 轮历史窗口
+### 1. 全量历史 + 摘要压缩
 
-配置项：`HISTORY_ROUNDS=10`。
+会话服务从数据库读取**全量**历史消息，再交给 `rag.build_memory_history()` 做记忆压缩：历史条数超过 `HISTORY_SUMMARY_TRIGGER_MESSAGES=6` 时，把更早的历史用 LLM 压成一段中文摘要（以 `【更早对话摘要】…` 注入 prompt），只保留最近 `HISTORY_SUMMARY_KEEP_MESSAGES=2` 条原文。这样模型既能理解同一会话里的追问（例如“那这个流程需要谁审批？”这种省略主语的问题），又不会让无限历史把 prompt 撑爆。
 
-会话服务从数据库读取最近 N 轮消息，拼入当前 prompt。这样模型能理解同一会话里的追问，例如“那这个流程需要谁审批？”这种省略主语的问题。
+清洗历史时 `_sanitize_history` 会对每条消息做 PII（email / IP）脱敏，摘要只保留身份、偏好、已确认结论等对后续回答有帮助的信息，不回填隐私原文。
 
-这是滑动窗口式上下文控制：保留最近上下文，避免无限历史导致 prompt 过长、成本过高或超过上下文限制。
+`HISTORY_ROUNDS` 已废弃：它只在 `config.py` 定义，全仓没有任何代码读取；滑动窗口已从主链路移除。
 
 ### 2. InMemorySaver 会话检查点
 
@@ -103,7 +103,9 @@ Agent 的规划机制主要来自模型对系统提示词和工具描述的理�
 
 摘要前还会经过 PII 中间件，对 email、IP 等信息做脱敏。摘要压缩的目标是减少长对话 token 消耗，同时保留重要上下文。
 
-### 4. 结构化长期用户档案
+主流式问答链路（`/api/qa/ask-stream`）为了逐 token 输出直接走底层 `model.stream()`，不经过 Agent middleware，因此已在 `rag.build_memory_history()` 中做了等价的摘要压缩 + PII 脱敏（同样是超过 6 条触发、保留最近 2 条原文，见上文第 1 层）。也就是说摘要能力并非只存在于带记忆 Agent 链路。
+
+### 4. 会话级结构化用户档案
 
 `backend/app/core/memory_agent.py` 使用 LangChain `ToolStrategy(MemoryExtract)` 提取结构化记忆。Schema 包含：
 
@@ -116,7 +118,7 @@ Agent 的规划机制主要来自模型对系统提示词和工具描述的理�
 
 `backend/app/services/user_profile_service.py` 会先用触发词判断一条消息是否值得提取记忆，例如“我叫”“我是”“以后叫我”“回答要简洁”。命中后才调用 LLM，降低成本。
 
-提取出的结构化字段写入 `user_profile.fields`，每次问答时以“用户档案”形式注入 prompt。这样即使历史窗口裁剪掉早期消息，用户姓名、称呼、偏好仍能保留。
+提取出的结构化字段写入 `user_profile.fields`（主键为 `conversation_id`，换一个会话不继承），每次问答时以“用户档案”形式注入 prompt。这样即使更早的原文被摘要压缩，用户姓名、称呼、偏好仍能保留。
 
 ## 记忆边界
 

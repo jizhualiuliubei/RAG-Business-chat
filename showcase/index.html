@@ -241,10 +241,10 @@
   <section class="section section-alt" id="agent">
     <div class="wrap">
       <div class="section-head">
-        <h2>Agent 与记忆：两条问答路径 + 三层上下文</h2>
+        <h2>Agent 与记忆：两条问答路径 + 显式的上下文压缩</h2>
         <p>
           项目同时保留「可控的手动 RAG」和「灵活的 Agent RAG」，不是二选一——引用要求强的制度问答走前者，
-          需要工具组合的走后者。上下文则由滑动窗口、摘要压缩、用户档案三层共同管理。
+          需要工具组合的走后者。上下文在主链路上由摘要压缩与 PII 脱敏显式处理，用户档案单独落库注入。
         </p>
       </div>
 
@@ -273,38 +273,43 @@
 
       <div class="diff-grid">
         <article class="diff-card">
-          <div class="diff-icon">窗</div>
-          <h3>滑动窗口 Sliding Window</h3>
-          <p>
-            <code>HISTORY_ROUNDS=10</code>，每轮 = 1 问 1 答，即只把最近 <b>10 轮 / 20 条</b>消息注入 prompt。
-            实现上从 SQLite 按时间倒序取 20 条，再翻转回正序。
-          </p>
-          <div class="note why" style="margin-top:14px">
-            <b>作用</b>把上下文长度和调用成本固定住——对话再长，prompt 也不会线性膨胀。代价是超出窗口的早期信息会被挤出。
-          </div>
-        </article>
-
-        <article class="diff-card">
-          <div class="diff-icon teal">缩</div>
+          <div class="diff-icon">缩</div>
           <h3>摘要压缩 Summarization Compression</h3>
           <p>
-            <code>SummarizationMiddleware(trigger=6 条, keep=2 条)</code>：消息超过 6 条时，
-            用对话模型把历史压成一段摘要，并保留最近 2 条原文不动。
+            主问答链路读<b>全量</b>历史后交给 <code>rag.build_memory_history()</code>：
+            消息超过 <code>HISTORY_SUMMARY_TRIGGER_MESSAGES=6</code> 条时，把更早的历史用对话模型压成一段摘要，
+            只保留最近 <code>HISTORY_SUMMARY_KEEP_MESSAGES=2</code> 条原文，以 <code>system</code> 消息注入。
           </p>
-          <div class="note limit" style="margin-top:14px">
-            <b>当前生效范围</b>它挂在 Agent 路径上。线上主问答链路走的是滑动窗口，没有经过这层中间件——这一点在下方「已知问题」里说明。
+          <div class="note why" style="margin-top:14px">
+            <b>为什么要自己做一遍</b>流式回答为了真正逐 token 输出，走的是底层 <code>model.stream()</code>，
+            不经过 LangChain 的 Agent middleware，所以摘要压缩需要在主链路上显式实现。
+            摘要模型不可用时回退为本地截断，不影响问答可用性。
           </div>
         </article>
 
         <article class="diff-card">
-          <div class="diff-icon">档</div>
-          <h3>长期用户档案</h3>
+          <div class="diff-icon">隐</div>
+          <h3>历史消息 PII 脱敏</h3>
+          <p>
+            <code>_sanitize_history</code> 会过滤掉非 user / assistant / system 角色和空内容，
+            并对<b>每一条</b>历史消息做 email / IP 脱敏后再喂给模型。
+          </p>
+          <div class="note problem" style="margin-top:14px">
+            <b>为什么必须做在历史这一层</b>数据库里存的是原文。中间件的脱敏只覆盖"当次输入"，
+            如果把 SQLite 读回的历史直接拼进 prompt，就绕过了脱敏——实测模型可以复述出历史里的邮箱。
+          </div>
+        </article>
+
+        <article class="diff-card">
+          <div class="diff-icon teal">档</div>
+          <h3>会话级用户档案</h3>
           <p>
             用 <code>ToolStrategy</code> + Pydantic Schema 让模型结构化输出姓名 / 称呼 / 身份 / 偏好，
             写入 <code>user_profile</code> 表，每轮问答注入 prompt。DeepSeek 不支持原生 structured output，所以用「工具调用」的方式实现。
           </p>
-          <div class="note why" style="margin-top:14px">
-            <b>为什么要单独存</b>历史窗口会把早期信息挤出去，而用户身份是"无论窗口怎么裁都该在场"的信息。先做触发词预筛（我叫 / 叫我 / 我是 / 偏好…），避免每条消息都调一次 LLM。
+          <div class="note limit" style="margin-top:14px">
+            <b>边界</b>表的主键是 <code>conversation_id</code>，所以档案是<b>会话级</b>的：同一会话内刷新、重启都不丢，
+            但换一个会话不继承，删除会话时一并清理。先做触发词预筛（我叫 / 叫我 / 我是 / 偏好…），避免每条消息都调一次 LLM。
           </div>
         </article>
 
@@ -421,15 +426,16 @@ npm run dev -- --host 127.0.0.1 --port 5173</div>
       <div class="diff-grid">
         <article class="diff-card">
           <div class="diff-icon">1</div>
-          <h3>摘要压缩没有覆盖主问答链路</h3>
+          <h3>摘要压缩没有窗口上限</h3>
           <p>
-            <code>SummarizationMiddleware</code>、PII 中间件、模型调用上限这三项挂在 <code>_get_agent_with_memory()</code> 上，
-            只有走 Agent 路径才生效。而前端实际调用的是 <code>/api/qa/ask-stream</code>，它直连 <code>model.stream()</code>，
-            不经过任何中间件。
+            超过 6 条历史后，<code>build_memory_history</code> 会把<b>更早的全部消息</b>一次性交给模型做摘要，
+            只截掉最近 2 条原文。也就是说送进摘要的 <code>older</code> 长度等于「总消息数 − 2」，没有上限。
           </p>
           <div class="note problem" style="margin-top:14px">
-            <b>实际后果</b>线上上下文完全由滑动窗口（最近 10 轮）控制，没有摘要压缩兜底；历史消息的 PII 脱敏也只做在 Agent 路径上。
-            要修的话，把中间件逻辑下沉到流式链路，或在流式前先对窗口内消息做一次摘要。
+            <b>影响与改进方向</b>会话很长时，每轮问答都要把全部历史作为摘要输入调用一次模型，输入成本随会话长度线性增长，
+            而且同一份摘要每轮都会重算一次。可以对 <code>older</code> 也加窗口上限，或把摘要结果缓存到会话上复用。
+            另外 <code>build_memory_history</code> 在流式链路被调用了两次（<code>qa_service</code> 一次、<code>stream_generate_answer</code> 一次），
+            第二次因消息数已 ≤ 6 而直接透传，属冗余但无害。
           </div>
         </article>
 

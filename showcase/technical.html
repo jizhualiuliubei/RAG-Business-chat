@@ -196,25 +196,30 @@
         </table>
       </div>
 
-      <div class="sub-head">上下文的三层管理</div>
+      <div class="sub-head">上下文的压缩与注入</div>
       <div class="table-card">
         <table>
           <thead><tr><th>机制</th><th>实现</th><th>作用</th></tr></thead>
           <tbody>
             <tr>
-              <td><b>滑动窗口</b><br /><span style="color:var(--kb-text-muted);font-size:13px">Sliding Window</span></td>
-              <td><code>HISTORY_ROUNDS=10</code>，每轮 = 1 问 1 答。从 SQLite 按时间倒序取 20 条，再翻转回正序注入 prompt。</td>
-              <td>把上下文长度与调用成本固定住，对话再长 prompt 也不线性膨胀；代价是超出窗口的早期信息被挤出。</td>
-            </tr>
-            <tr>
               <td><b>摘要压缩</b><br /><span style="color:var(--kb-text-muted);font-size:13px">Summarization Compression</span></td>
-              <td><code>SummarizationMiddleware(trigger=6 条, keep=2 条)</code>：消息超过 6 条时用对话模型把历史压成摘要，保留最近 2 条原文。</td>
-              <td>长会话不必线性膨胀。但当前只挂在 Agent 路径上——见下方「工程取舍」。</td>
+              <td><code>rag.build_memory_history()</code>：主链路读<b>全量</b>历史（不再按轮数截断）。消息超过 <code>HISTORY_SUMMARY_TRIGGER_MESSAGES=6</code> 条时，把更早的消息压成一段摘要（prompt 要求 300 字以内），保留最近 <code>HISTORY_SUMMARY_KEEP_MESSAGES=2</code> 条原文，返回 <code>[{role:"system", content:"【更早对话摘要】…"}, 最近2条]</code>。</td>
+              <td>流式回答为了逐 token 输出走底层 <code>model.stream()</code>，不经过 Agent middleware，所以摘要压缩在主链路上显式实现。摘要模型失败时回退本地截断，不影响问答可用性。</td>
             </tr>
             <tr>
-              <td><b>长期用户档案</b></td>
-              <td>用 <code>ToolStrategy</code> + Pydantic Schema 让模型结构化输出姓名/称呼/身份/偏好（DeepSeek 不支持原生 structured output，所以走工具调用），写入 <code>user_profile</code> 表，每轮问答注入 prompt。</td>
-              <td>用户身份是「无论窗口怎么裁都该在场」的信息。先做触发词预筛（我叫/叫我/我是/偏好…），避免每条消息都调 LLM。</td>
+              <td><b>历史消息 PII 脱敏</b></td>
+              <td><code>_sanitize_history</code>：过滤非 user / assistant / system 角色与空内容，并对每条历史做 email / IP 脱敏。</td>
+              <td>数据库存的是原文；中间件只脱敏「当次输入」，历史直接拼进 prompt 会绕过脱敏（实测可复述邮箱），所以在历史这一层统一兜底。</td>
+            </tr>
+            <tr>
+              <td><b>会话级用户档案</b></td>
+              <td>用 <code>ToolStrategy</code> + Pydantic Schema 让模型结构化输出姓名/称呼/身份/偏好（DeepSeek 不支持原生 structured output，所以走工具调用），写入 <code>user_profile</code> 表并在每轮问答注入。</td>
+              <td>用户身份是「不应被历史压缩挤掉」的信息，所以单独落库注入。先做触发词预筛（我叫/叫我/我是/偏好…），避免每条消息都调 LLM。</td>
+            </tr>
+            <tr>
+              <td><b>Agent 路径的 middleware</b></td>
+              <td><code>PIIMiddleware</code> + <code>SummarizationMiddleware(trigger=6 条, keep=2 条)</code> + <code>ModelCallLimitMiddleware(thread_limit=8)</code>，由 <code>ENABLE_MIDDLEWARE</code> 控制，挂在 <code>_get_agent_with_memory()</code>。</td>
+              <td>只对 Agent 路径生效。主链路是等价的显式实现，不再依赖这层中间件。</td>
             </tr>
           </tbody>
         </table>
@@ -222,8 +227,9 @@
 
       <div class="note limit">
         <b>两点需要如实说明</b>
-        ① <code>user_profile</code> 表的主键是 <code>conversation_id</code>，也就是说档案是<b>会话级</b>的：换一个会话不继承，删除会话时档案一并清理。它更准确的叫法是「会话内长期档案」，不是跨会话的用户画像。<br />
-        ② <code>get_user_profile</code> 这个 <code>@tool</code> 是占位实现，固定返回「由系统在提示词中注入」；真正的档案走 system prompt 注入。它作为「显式能力声明」存在，不是一个独立检索工具。
+        ① <code>HISTORY_ROUNDS</code>（默认 10）现在只在 <code>config.py</code> 里定义、<b>没有任何地方读取</b>，是废弃配置；原先的滑动窗口已从主链路移除。<br />
+        ② <code>user_profile</code> 表的主键是 <code>conversation_id</code>，档案是<b>会话级</b>的：同一会话内刷新、重启不丢，但换会话不继承，删除会话时一并清理。它准确的叫法是「会话内用户档案」，不是跨会话用户画像。<br />
+        ③ <code>get_user_profile</code> 这个 <code>@tool</code> 是占位实现，固定返回「由系统在提示词中注入」；真正的档案走 system prompt 注入。
       </div>
     </div>
   </section>
@@ -324,9 +330,14 @@
           <thead><tr><th>项</th><th>现状</th><th>影响与改进方向</th></tr></thead>
           <tbody>
             <tr>
-              <td>摘要压缩未覆盖主流式链路</td>
-              <td><code>SummarizationMiddleware</code> 与 PII 中间件只挂在 <code>_get_agent_with_memory()</code> 上；前端实际走的 <code>/qa/ask-stream</code> 直连 <code>model.stream()</code>，不经过中间件。</td>
-              <td>线上上下文完全由滑动窗口控制，没有摘要兜底；历史消息的 PII 脱敏也只做在 Agent 路径。改进：把中间件逻辑下沉到流式链路，或在流式前先对窗口内消息做一次摘要。</td>
+              <td>摘要压缩没有窗口上限</td>
+              <td><code>build_memory_history</code> 把「总消息数 − 2」条更早历史一次性交给模型做摘要，每轮重新计算，没有截断也没有缓存。</td>
+              <td>会话很长时每轮问答都要为全量历史调用一次摘要模型，输入成本随会话长度线性增长。改进方向：对 <code>older</code> 加窗口上限，或把摘要结果缓存到会话上复用。</td>
+            </tr>
+            <tr>
+              <td>摘要压缩被调用两次</td>
+              <td>流式链路里 <code>qa_service.stream_answer</code> 调用一次 <code>build_memory_history</code>，随后 <code>rag.stream_generate_answer</code> 又调用一次。</td>
+              <td>第二次因为消息数已经 ≤ 6 而直接透传，不会重复调用 LLM，属冗余但无害。可去掉其中一处。</td>
             </tr>
             <tr>
               <td><code>.xls</code> 不可解析</td>
