@@ -175,6 +175,10 @@ const router = useRouter()
 const route = useRoute()
 const viewMode = computed(() => isAdmin.value && route.name === 'dashboard' ? 'dashboard' : 'chat')
 
+function validKnowledgeBases(items = []) {
+  return items.filter((kb) => String(kb?.name || '').trim())
+}
+
 // ============ 初始化 ============
 onMounted(async () => {
   window.addEventListener('auth:expired', resetAuthState)
@@ -205,7 +209,7 @@ async function restoreSession() {
 }
 
 async function initializeWorkspace() {
-  kbList.value = await getKnowledgeBases()
+  kbList.value = validKnowledgeBases(await getKnowledgeBases())
   if (kbList.value.length > 0) {
     currentKb.value = kbList.value[0]
     selectedKbIds.value = [kbList.value[0].id]
@@ -282,7 +286,7 @@ function handleDeleteConversation(convId) {
 // 重新加载知识库列表（新建/删除后调用）
 // 删除当前知识库后，自动选中剩余的第一个
 async function loadKnowledgeBases(preferredKb = null) {
-  const nextKbList = await getKnowledgeBases()
+  const nextKbList = validKnowledgeBases(await getKnowledgeBases())
   kbList.value = nextKbList
   const ids = new Set(nextKbList.map((k) => k.id))
   selectedKbIds.value = selectedKbIds.value.filter((id) => ids.has(id))

@@ -40,3 +40,47 @@ def test_delete_knowledge_base_removes_document_records_vectors_and_files(tmp_pa
         assert not stored_file.exists()
     finally:
         db.close()
+
+
+def test_create_knowledge_base_rejects_blank_name():
+    db = _session()
+    try:
+        for blank in ("", "   ", "\n\t"):
+            try:
+                knowledge_base_service.create_knowledge_base(db, blank)
+            except ValueError as exc:
+                assert str(exc) == "知识库名称不能为空"
+            else:
+                raise AssertionError("blank knowledge base name should be rejected")
+    finally:
+        db.close()
+
+
+def test_list_knowledge_bases_hides_legacy_blank_names():
+    db = _session()
+    try:
+        db.add(KnowledgeBase(name="   "))
+        db.add(KnowledgeBase(name="企业规模评测库"))
+        db.commit()
+
+        names = [kb.name for kb in knowledge_base_service.list_knowledge_bases(db)]
+
+        assert names == ["企业规模评测库"]
+    finally:
+        db.close()
+
+
+def test_create_knowledge_base_checks_duplicate_after_trimming_existing_name():
+    db = _session()
+    try:
+        db.add(KnowledgeBase(name=" 企业规模评测库 "))
+        db.commit()
+
+        try:
+            knowledge_base_service.create_knowledge_base(db, "企业规模评测库")
+        except ValueError as exc:
+            assert str(exc) == "知识库名称已存在: 企业规模评测库"
+        else:
+            raise AssertionError("trimmed duplicate knowledge base name should be rejected")
+    finally:
+        db.close()

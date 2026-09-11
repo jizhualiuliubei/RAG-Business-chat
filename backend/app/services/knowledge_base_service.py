@@ -6,7 +6,7 @@
 
 核心：每个知识库一个 id，文档挂 kb_id，检索按 kb_id 过滤（已预留字段）。
 """
-from sqlalchemy import or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.config import UPLOAD_DIR
@@ -16,16 +16,33 @@ from app.models.knowledge_base import KnowledgeBase
 from app.services import enterprise_service
 
 
+def normalize_knowledge_base_name(name: str | None) -> str:
+    """统一知识库名称入口，避免空白名称进入系统。"""
+    normalized = (name or "").strip()
+    if not normalized:
+        raise ValueError("知识库名称不能为空")
+    return normalized
+
+
+def valid_name_filter():
+    """过滤历史脏数据：旧库可能存在空字符串或纯空白名称。"""
+    return and_(KnowledgeBase.name.is_not(None), func.length(func.trim(KnowledgeBase.name)) > 0)
+
+
 def list_knowledge_bases(db: Session, enterprise_id: int | None = None) -> list[KnowledgeBase]:
     """知识库列表（按 id 升序，默认知识库在第一个）"""
-    stmt = select(KnowledgeBase).order_by(KnowledgeBase.id.asc())
+    stmt = select(KnowledgeBase).where(valid_name_filter()).order_by(KnowledgeBase.id.asc())
     if enterprise_id is not None:
         if enterprise_service.is_system_enterprise(db, enterprise_id):
             stmt = select(KnowledgeBase).where(
-                or_(KnowledgeBase.enterprise_id == enterprise_id, KnowledgeBase.enterprise_id.is_(None))
+                valid_name_filter(),
+                or_(KnowledgeBase.enterprise_id == enterprise_id, KnowledgeBase.enterprise_id.is_(None)),
             ).order_by(KnowledgeBase.id.asc())
         else:
-            stmt = select(KnowledgeBase).where(KnowledgeBase.enterprise_id == enterprise_id).order_by(KnowledgeBase.id.asc())
+            stmt = select(KnowledgeBase).where(
+                valid_name_filter(),
+                KnowledgeBase.enterprise_id == enterprise_id,
+            ).order_by(KnowledgeBase.id.asc())
     return db.execute(stmt).scalars().all()
 
 
@@ -44,8 +61,9 @@ def get_knowledge_base(db: Session, kb_id: int, enterprise_id: int | None = None
 
 def create_knowledge_base(db: Session, name: str, enterprise_id: int | None = None) -> KnowledgeBase:
     """新建知识库（name 唯一，重名抛 ValueError）"""
+    name = normalize_knowledge_base_name(name)
     # 检查重名：知识库名应该是唯一的
-    stmt = select(KnowledgeBase).where(KnowledgeBase.name == name)
+    stmt = select(KnowledgeBase).where(func.trim(KnowledgeBase.name) == name)
     if enterprise_id is not None:
         stmt = stmt.where(KnowledgeBase.enterprise_id == enterprise_id)
     if db.execute(stmt).scalar_one_or_none() is not None:
@@ -64,10 +82,8 @@ def update_knowledge_base(db: Session, kb_id: int, name: str, enterprise_id: int
     if not kb or (enterprise_id is not None and kb.enterprise_id != enterprise_id):
         return None
 
-    name = name.strip()
-    if not name:
-        raise ValueError("知识库名称不能为空")
-    stmt = select(KnowledgeBase).where(KnowledgeBase.name == name, KnowledgeBase.id != kb_id)
+    name = normalize_knowledge_base_name(name)
+    stmt = select(KnowledgeBase).where(func.trim(KnowledgeBase.name) == name, KnowledgeBase.id != kb_id)
     if enterprise_id is not None:
         stmt = stmt.where(KnowledgeBase.enterprise_id == enterprise_id)
     if db.execute(stmt).scalar_one_or_none() is not None:

@@ -19,8 +19,7 @@ def test_deepseek_models_use_configured_low_temperature(monkeypatch):
     monkeypatch.setattr(llm, "_model_cache", {})
 
     llm.get_model()
-    llm.get_model_for_config("test-enterprise-key", "https://api.deepseek.com/v1", "deepseek-v4-flash")
+    llm.get_model_for_config("sk-enterprise", "https://api.deepseek.com/v1", "deepseek-v4-flash")
 
     assert calls[0]["temperature"] == 0.1
     assert calls[1]["temperature"] == 0.1
-

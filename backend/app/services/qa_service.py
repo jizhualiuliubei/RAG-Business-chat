@@ -14,7 +14,6 @@ from app.models.message import Message
 from app.services import conversation_service  # 读历史消息做上下文记忆
 from app.services import user_profile_service  # 长期记忆：用户档案
 from app.services import attachment_service     # 会话附件：临时上下文
-from app.config import HISTORY_ROUNDS  # 上下文记忆窗口：最近 N 轮
 from app.services import enterprise_service
 from sqlalchemy import or_, select
 
@@ -178,15 +177,16 @@ def stream_answer(
         user_profile_service.extract_and_save(db, conversation_id, question)
         # 读档案注入文本（如"用户姓名：张三"）——长期记忆，刷新/重启不丢
         profile_text = user_profile_service.get_profile_text(db, conversation_id)
-        history = conversation_service._history_to_dicts(
+        raw_history = conversation_service._history_to_dicts(
             conversation_service.list_messages(
                 db,
                 conversation_id,
-                limit_rounds=HISTORY_ROUNDS,
                 enterprise_id=enterprise_id,
                 user_id=user_id,
             )
         )
+        # 主流式链路不经过 Agent middleware，这里显式做“旧历史摘要 + 最近原文”。
+        history = rag.build_memory_history(raw_history, model_config=model_config)
         # 会话附件是当前账号当前会话内的临时 RAG：先检索相关切片，
         # 没命中时只注入摘要，避免把整份附件硬塞进 prompt。
         attachment_sources = attachment_service.retrieve_attachment_sources(

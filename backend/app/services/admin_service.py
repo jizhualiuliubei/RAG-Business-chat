@@ -16,7 +16,7 @@ from app.models.document import Document
 from app.models.knowledge_base import KnowledgeBase
 from app.models.message import Message
 from app.models.user import User
-from app.services import audit_service, auth_service, enterprise_service
+from app.services import audit_service, auth_service, enterprise_service, knowledge_base_service
 from app.models.enterprise import Enterprise
 
 
@@ -48,7 +48,10 @@ def get_overview(db: Session, enterprise_id: int | None = None) -> dict:
     return {
         "user_count": db.execute(scoped(select(func.count()).select_from(User), User)).scalar_one(),
         "active_user_count": db.execute(scoped(select(func.count()).select_from(User).where(User.status == "active"), User)).scalar_one(),
-        "kb_count": db.execute(scoped(select(func.count()).select_from(KnowledgeBase), KnowledgeBase)).scalar_one(),
+        "kb_count": db.execute(scoped(
+            select(func.count()).select_from(KnowledgeBase).where(knowledge_base_service.valid_name_filter()),
+            KnowledgeBase,
+        )).scalar_one(),
         "doc_count": db.execute(scoped(select(func.count()).select_from(Document), Document)).scalar_one(),
         "chunk_count": db.execute(scoped(select(func.coalesce(func.sum(Document.chunk_count), 0)), Document)).scalar_one(),
         "conversation_count": db.execute(scoped(select(func.count()).select_from(Conversation), Conversation)).scalar_one(),
@@ -242,7 +245,7 @@ def update_user_status(db: Session, *, user_id: int, status: str, actor: dict) -
 
 
 def get_knowledge_overview(db: Session, enterprise_id: int | None = None) -> dict:
-    kb_stmt = select(KnowledgeBase).order_by(KnowledgeBase.id.asc())
+    kb_stmt = select(KnowledgeBase).where(knowledge_base_service.valid_name_filter()).order_by(KnowledgeBase.id.asc())
     doc_stmt = select(Document).order_by(Document.created_at.desc())
     if enterprise_id is not None:
         kb_stmt = kb_stmt.where(KnowledgeBase.enterprise_id == enterprise_id)

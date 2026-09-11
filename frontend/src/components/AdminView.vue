@@ -1174,7 +1174,11 @@ async function loadUsers() {
 }
 
 async function loadKnowledge() {
-  knowledge.value = await getAdminKnowledgeOverview()
+  const nextKnowledge = await getAdminKnowledgeOverview()
+  knowledge.value = {
+    ...nextKnowledge,
+    knowledge_bases: (nextKnowledge.knowledge_bases || []).filter((kb) => String(kb?.name || '').trim()),
+  }
   const validDocIds = new Set(
     (knowledge.value.knowledge_bases || []).flatMap((kb) => kb.documents.map((doc) => doc.id)),
   )

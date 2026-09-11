@@ -185,12 +185,12 @@ def test_enterprise_model_keys_are_masked_and_missing_key_blocks_qa(monkeypatch)
 
         saved = client.put(
             "/api/enterprise/model-keys",
-            json={"deepseek_api_key": "test-deepseek-key-123456", "siliconflow_api_key": "test-sf-key-abcdef"},
+            json={"deepseek_api_key": "sk-deepseek-123456", "siliconflow_api_key": "sk-sf-abcdef"},
             headers=acme_headers,
         )
         assert saved.status_code == 200, saved.text
         assert saved.json()["deepseek"]["masked"] == "************3456"
-        assert "test-deepseek" not in saved.text
+        assert "sk-deepseek" not in saved.text
     finally:
         app.dependency_overrides.clear()
 
@@ -620,7 +620,7 @@ def test_system_model_keys_are_saved_and_preferred_before_env_fallback(monkeypat
         saved = client.put(
             "/api/enterprise/model-keys",
             headers=system_headers,
-            json={"deepseek_api_key": "test-system-deepseek-key", "siliconflow_api_key": "test-system-siliconflow-key"},
+            json={"deepseek_api_key": "sk-system-deepseek", "siliconflow_api_key": "sk-system-siliconflow"},
         )
         assert saved.status_code == 200, saved.text
         assert saved.json()["deepseek"]["masked"] == "************seek"
@@ -630,8 +630,8 @@ def test_system_model_keys_are_saved_and_preferred_before_env_fallback(monkeypat
 
             model_config = enterprise_service.require_enterprise_deepseek_key(db, system_user["enterprise_id"])
             embed_config = enterprise_service.require_enterprise_siliconflow_key(db, system_user["enterprise_id"])
-        assert model_config["api_key"] == "test-system-deepseek-key"
-        assert embed_config["api_key"] == "test-system-siliconflow-key"
+        assert model_config["api_key"] == "sk-system-deepseek"
+        assert embed_config["api_key"] == "sk-system-siliconflow"
     finally:
         app.dependency_overrides.clear()
 
@@ -734,7 +734,7 @@ def test_model_key_connection_test_endpoint_is_masked_and_admin_only(monkeypatch
         worker_headers, _ = _login(client, username="worker2", password="Worker123456", enterprise_code="acme")
 
         def fake_check(provider, key, base_url, model):
-            assert key in {"test-live-deepseek-key", "test-live-siliconflow-key"}
+            assert key in {"sk-live-deepseek-abcdef", "sk-live-siliconflow-uvwxyz"}
             return {"ok": True, "message": f"{provider} 连接正常", "latency_ms": 12}
 
         import app.services.enterprise_service as enterprise_service
@@ -745,16 +745,16 @@ def test_model_key_connection_test_endpoint_is_masked_and_admin_only(monkeypatch
             "/api/enterprise/model-keys/test",
             headers=acme_headers,
             json={
-                "deepseek_api_key": "test-live-deepseek-key",
-                "siliconflow_api_key": "test-live-siliconflow-key",
+                "deepseek_api_key": "sk-live-deepseek-abcdef",
+                "siliconflow_api_key": "sk-live-siliconflow-uvwxyz",
             },
         )
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["deepseek"]["ok"] is True
         assert data["siliconflow"]["ok"] is True
-        assert "test-live-deepseek" not in response.text
-        assert "test-live-siliconflow" not in response.text
+        assert "sk-live-deepseek" not in response.text
+        assert "sk-live-siliconflow" not in response.text
 
         forbidden = client.post("/api/enterprise/model-keys/test", headers=worker_headers, json={})
         assert forbidden.status_code == 403
@@ -779,10 +779,10 @@ def test_model_key_connection_test_reports_provider_model_and_not_found(monkeypa
             "/api/enterprise/model-keys/test",
             headers=system_headers,
             json={
-                "deepseek_api_key": "test-deepseek-key",
+                "deepseek_api_key": "sk-test-deepseek",
                 "deepseek_base_url": "https://api.deepseek.com/v1",
                 "deepseek_model": "deepseek-v4-flash",
-                "siliconflow_api_key": "test-siliconflow-key",
+                "siliconflow_api_key": "sk-test-siliconflow",
                 "siliconflow_base_url": "https://api.siliconflow.cn/v1",
                 "embed_model_name": "BAAI/bge-m3",
             },
@@ -831,9 +831,9 @@ def test_model_key_base_urls_are_normalized_before_save_and_test(monkeypatch):
             "/api/enterprise/model-keys/test",
             headers=system_headers,
             json={
-                "deepseek_api_key": "test-deepseek-key",
+                "deepseek_api_key": "sk-test-deepseek",
                 "deepseek_base_url": "https://api.deepseek.com",
-                "siliconflow_api_key": "test-siliconflow-key",
+                "siliconflow_api_key": "sk-test-siliconflow",
                 "siliconflow_base_url": "https://api.siliconflow.cn",
             },
         )
@@ -847,9 +847,9 @@ def test_model_key_base_urls_are_normalized_before_save_and_test(monkeypatch):
             "/api/enterprise/model-keys",
             headers=system_headers,
             json={
-                "deepseek_api_key": "test-deepseek-key",
+                "deepseek_api_key": "sk-test-deepseek",
                 "deepseek_base_url": "https://api.deepseek.com/",
-                "siliconflow_api_key": "test-siliconflow-key",
+                "siliconflow_api_key": "sk-test-siliconflow",
                 "siliconflow_base_url": "https://api.siliconflow.cn/",
             },
         )
@@ -1005,5 +1005,3 @@ def test_enterprise_admin_overview_and_audit_logs_are_scoped_to_own_enterprise(m
         assert all(item["enterprise_id"] != beta_user["enterprise_id"] for item in audit_items)
     finally:
         app.dependency_overrides.clear()
-
-

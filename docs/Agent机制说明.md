@@ -19,7 +19,7 @@
 | --- | --- | --- |
 | `search_knowledge_base` | `query: str` | 检索当前企业当前知识库，返回带编号的证据片段。 |
 | `get_current_time` | 无 | 返回当前日期时间，用于回答今天、几号、星期几等问题。 |
-| `get_user_profile` | `question: str` | 把当前会话的实体记忆作为显式工具能力暴露给模型，实体记忆内容由调用方通过 system prompt 注入并提供。 |
+| `get_user_profile` | `question: str` | 注册在 Agent 工具清单中的档案工具；档案内容由调用方通过 system prompt 注入提供。 |
 
 工具注册方式：
 
@@ -70,7 +70,7 @@ Agent 的规划机制主要来自模型对系统提示词和工具描述的理�
 
 本项目的记忆由短期记忆、长期记忆和实体记忆共同构成，落地为四层实现。
 
-### 1. 短期记忆：滑动窗口 + 摘要压缩
+### 1. 短期记忆：全量历史 + 摘要压缩
 
 会话服务从数据库读取**全量**历史消息，再交给 `rag.build_memory_history()` 做记忆压缩：历史条数超过 `HISTORY_SUMMARY_TRIGGER_MESSAGES=6` 时，把更早的历史用 LLM 压成一段中文摘要（以 `【更早对话摘要】…` 注入上下文），只保留最近 `HISTORY_SUMMARY_KEEP_MESSAGES=2` 条原文。这样模型既能理解同一会话里的追问（例如“那这个流程需要谁审批？”这种省略主语的问题），又不会让无限历史把 prompt 撑爆。
 

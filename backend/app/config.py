@@ -69,6 +69,10 @@ RERANK_TIMEOUT_SECONDS = float(os.getenv("RERANK_TIMEOUT_SECONDS", "8"))
 # ============ 记忆窗口 ============
 # 对话上下文记忆：只带最近 N 轮（每轮 = 1 问 1 答），控制 prompt 长度/成本
 HISTORY_ROUNDS = int(os.getenv("HISTORY_ROUNDS", "10"))
+# 主流式问答链路的历史摘要压缩：超过 N 条历史消息时，把更早历史压缩成摘要，
+# 再保留最近 M 条原文，避免线上 /qa/ask-stream 绕过 Agent 中间件后只剩滑动窗口。
+HISTORY_SUMMARY_TRIGGER_MESSAGES = int(os.getenv("HISTORY_SUMMARY_TRIGGER_MESSAGES", "6"))
+HISTORY_SUMMARY_KEEP_MESSAGES = int(os.getenv("HISTORY_SUMMARY_KEEP_MESSAGES", "2"))
 
 
 # ============ 六、中间件开关 ============

@@ -18,7 +18,13 @@ from langchain.agents.middleware import (
 )
 from langgraph.checkpoint.memory import InMemorySaver
 
-from app.config import ENABLE_MIDDLEWARE, SCORE_THRESHOLD, TOP_K
+from app.config import (
+    ENABLE_MIDDLEWARE,
+    HISTORY_SUMMARY_KEEP_MESSAGES,
+    HISTORY_SUMMARY_TRIGGER_MESSAGES,
+    SCORE_THRESHOLD,
+    TOP_K,
+)
 from app.core import milvus_store
 from app.core.embeddings import embed_query
 from app.core.hybrid_search import _dedup_hits, fuse_dual
@@ -518,6 +524,93 @@ def build_user_prompt(question: str, context_blocks: list) -> str:
     return f"【当前日期时间】{_current_datetime()}\n\n【已知信息】\n{context}\n\n【问题】\n{question}"
 
 
+def _sanitize_history(history: list | None) -> list[dict]:
+    """清洗历史消息：只保留模型需要的 role/content，并对 PII 做兜底脱敏。"""
+    sanitized = []
+    for item in history or []:
+        role = item.get("role", "")
+        content = item.get("content", "")
+        if role not in {"user", "assistant", "system"} or not content:
+            continue
+        sanitized.append({"role": role, "content": redact_text(str(content))})
+    return sanitized
+
+
+def _format_history_for_summary(history: list[dict]) -> str:
+    role_names = {"user": "用户", "assistant": "AI", "system": "系统"}
+    lines = []
+    for item in history:
+        role = role_names.get(item["role"], item["role"])
+        lines.append(f"{role}：{item['content']}")
+    return "\n".join(lines)
+
+
+def _fallback_history_summary(history: list[dict]) -> str:
+    """摘要模型不可用时的本地兜底，避免摘要失败影响主问答。"""
+    text = _format_history_for_summary(history)
+    if len(text) <= 900:
+        return text
+    return f"{text[:700]}\n...\n{text[-180:]}"
+
+
+def summarize_history_messages(history: list[dict], model_config: dict | None = None) -> str:
+    """把更早历史压缩成摘要，供主流式链路注入上下文。
+
+    这里不用 LangChain 的 SummarizationMiddleware，因为 /qa/ask-stream 为了
+    真正逐 token 输出，走的是底层 model.stream()，没有经过 Agent middleware。
+    因此主链路需要显式摘要：数据库历史 -> PII 脱敏 -> LLM 摘要 -> 最近消息原文。
+    """
+    if not history:
+        return ""
+    sanitized = _sanitize_history(history)
+    summary_input = _format_history_for_summary(sanitized)
+    if not summary_input:
+        return ""
+    try:
+        from langchain_core.messages import SystemMessage
+
+        prompt = (
+            "请把下面的历史对话压缩为一段用于后续问答的记忆摘要。"
+            "只保留对后续回答有帮助的信息：用户身份、偏好、明确事实、待办、"
+            "已经确认的结论、关键约束、仍未解决的问题。"
+            "不要添加历史中没有的信息，不要保留邮箱、IP 等隐私原文。"
+            "输出中文，控制在 300 字以内。"
+        )
+        result = _chat_model(model_config).invoke([
+            SystemMessage(content=prompt),
+            {"role": "user", "content": summary_input},
+        ])
+        summary = (result.content or "").strip()
+        return summary if summary else _fallback_history_summary(sanitized)
+    except Exception:
+        return _fallback_history_summary(sanitized)
+
+
+def build_memory_history(history: list | None, model_config: dict | None = None) -> list[dict]:
+    """主问答链路的记忆压缩：旧历史摘要 + 最近原文。
+
+    默认策略与原 Agent 中间件保持一致：超过 6 条消息触发摘要，只保留最近
+    2 条原文。这样线上主链路不再只是滑动窗口，而是能把更早上下文压缩后继续带入。
+    """
+    sanitized = _sanitize_history(history)
+    if len(sanitized) <= HISTORY_SUMMARY_TRIGGER_MESSAGES:
+        return sanitized
+
+    keep_count = max(1, HISTORY_SUMMARY_KEEP_MESSAGES)
+    older = sanitized[:-keep_count]
+    recent = sanitized[-keep_count:]
+    summary = summarize_history_messages(older, model_config=model_config)
+    if not summary:
+        return recent
+    return [
+        {
+            "role": "system",
+            "content": f"【更早对话摘要】{summary}",
+        },
+        *recent,
+    ]
+
+
 def stream_generate_answer(
     question: str,
     context_blocks: list,
@@ -551,8 +644,9 @@ def stream_generate_answer(
     # 附件注入：用户上传的临时上下文，放在问题前让模型优先参考
     if attachments_context:
         user_prompt = f"{attachments_context}\n\n{user_prompt}"
-    # 消息列表 = 历史消息 + 当前问题（带记忆的核心：把历史一并传给模型）
-    messages = [*history, {"role": "user", "content": user_prompt}] if history else [
+    # 消息列表 = 压缩后的历史消息 + 当前问题（旧历史摘要 + 最近原文）
+    memory_history = build_memory_history(history, model_config=model_config)
+    messages = [*memory_history, {"role": "user", "content": user_prompt}] if memory_history else [
         {"role": "user", "content": user_prompt},
     ]
     # 流式调用：messages = [system 指令, 历史..., 当前问题]
@@ -615,7 +709,8 @@ def stream_generate_general_answer(
         user_content = f"【用户档案】无记录（系统未保存任何用户个人信息）\n\n{user_content}"
     if attachments_context:
         user_content = f"{attachments_context}\n\n{user_content}"
-    messages = [*history, {"role": "user", "content": user_content}] if history else [
+    memory_history = build_memory_history(history, model_config=model_config)
+    messages = [*memory_history, {"role": "user", "content": user_content}] if memory_history else [
         {"role": "user", "content": user_content},
     ]
     for chunk in _chat_model(model_config).stream([
@@ -723,13 +818,10 @@ def chat_with_history(
         user_content = f"{attachments_context}\n\n{user_content}"
 
     # 消息列表 = 历史消息 + 当前问题（带记忆的核心：把历史一并传给 Agent）
-    # 历史消息来自 SQLite，存的是原文；PII 中间件只脱敏"当次输入"，
-    # 历史原文直接喂模型会绕过脱敏，这里统一对历史做脱敏（无敏感信息无副作用）
-    sanitized_history = [
-        {**m, "content": redact_text(m.get("content", ""))} if m.get("content") else m
-        for m in history
-    ]
-    messages = [*sanitized_history, {"role": "user", "content": user_content}]
+    # 历史消息来自 SQLite，主链路显式做 PII 脱敏和摘要压缩：
+    # 更早历史压成 system 摘要，最近消息保留原文，避免长会话无限膨胀。
+    memory_history = build_memory_history(history, model_config=model_config)
+    messages = [*memory_history, {"role": "user", "content": user_content}]
     config = {"configurable": {"thread_id": thread_id}}
 
     if model_config and not model_config.get("platform"):

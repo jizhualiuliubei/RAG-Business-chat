@@ -166,6 +166,25 @@ def test_admin_knowledge_overview_exposes_governance_data(monkeypatch):
         app.dependency_overrides.clear()
 
 
+def test_admin_knowledge_overview_hides_legacy_blank_knowledge_base(monkeypatch):
+    client, SessionLocal = _make_client(monkeypatch)
+    try:
+        with SessionLocal() as db:
+            system_enterprise = enterprise_service.ensure_system_enterprise(db)
+            db.add(KnowledgeBase(enterprise_id=system_enterprise.id, name="   "))
+            db.commit()
+
+        admin_token = _login_token(client, "admin", "admin123")
+        headers = {"Authorization": f"Bearer {admin_token}"}
+
+        response = client.get("/api/admin/knowledge-overview", headers=headers)
+        assert response.status_code == 200
+        names = [item["name"] for item in response.json()["knowledge_bases"]]
+        assert names == ["默认知识库"]
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_admin_can_rename_knowledge_base_and_audit_it(monkeypatch):
     client, _ = _make_client(monkeypatch)
     try:
