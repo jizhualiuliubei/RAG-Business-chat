@@ -20,8 +20,8 @@
 
 多企业隔离 · 结构化 RAG · 引用溯源 · 会话附件理解 · 360 题评测闭环
 
-<a href="http://118.31.45.253/"><img height="44" alt="点击进入在线体验" src="https://img.shields.io/badge/%E7%82%B9%E5%87%BB%E8%BF%9B%E5%85%A5%E5%9C%A8%E7%BA%BF%E4%BD%93%E9%AA%8C-2454d6?style=for-the-badge" /></a>　用体验账号登录，<b>开始在线体验</b><br />
-<a href="https://jizhualiuliubei.github.io/RAG-Business-chat/"><img height="44" alt="点击打开展示页" src="https://img.shields.io/badge/%E7%82%B9%E5%87%BB%E6%89%93%E5%BC%80%E5%B1%95%E7%A4%BA%E9%A1%B5-6e7681?style=for-the-badge" /></a>　点开查看<b>平台界面展示页与检索链路</b>
+<a href="http://118.31.45.253/"><img height="44" alt="点击进入在线体验" src="https://img.shields.io/badge/%E7%82%B9%E5%87%BB%E8%BF%9B%E5%85%A5%E5%9C%A8%E7%BA%BF%E4%BD%93%E9%AA%8C-2454d6?style=for-the-badge" /></a>　用体验账号登录，<b>直接在线提问</b><br />
+<a href="https://jizhualiuliubei.github.io/RAG-Business-chat/"><img height="44" alt="点击查看展示页面" src="https://img.shields.io/badge/%E7%82%B9%E5%87%BB%E6%9F%A5%E7%9C%8B%E5%B1%95%E7%A4%BA%E9%A1%B5%E9%9D%A2-6e7681?style=for-the-badge" /></a>　点开查看<b>平台展示页与检索链路</b>
 
 </div>
 
