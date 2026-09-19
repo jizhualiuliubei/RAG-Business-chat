@@ -2,7 +2,7 @@
 
 # RAG Business Chat
 
-**企业级 AI 知识库工作台**
+**企业 AI 知识库工作台**
 
 </div>
 
