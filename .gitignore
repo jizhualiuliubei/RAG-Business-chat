@@ -1,0 +1,47 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+# 测试缓存与临时目录（pytest 会在仓库内建目录）
+.pytest_cache/
+backend/.pytest_cache/
+backend/.pytest_tmp*/
+backend/.pytest_tmp*.pdf
+backend/.pytest-*/
+backend/.pdf_render_check/
+.playwright-cli/
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+
+# Runtime data
+backend/data/
+data/**/*.sql
+celerybeat-schedule*
+logs/
+*.log
+
+# Vendored third-party source
+markitdown-main/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.claude/
+.idea/
+.vscode/

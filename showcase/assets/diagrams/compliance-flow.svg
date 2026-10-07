@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="580" viewBox="0 0 1280 580" role="img" aria-label="合规执行链路">
+  <defs><style>.bg{fill:#ffffff}.title{font:700 28px Arial,"Microsoft YaHei";fill:#14171f}.row{font:700 13px Arial,"Microsoft YaHei";fill:#2454d6}.box{fill:white;stroke:#dbe5ff;stroke-width:1.5;rx:16}.note{fill:#f7f9ff;stroke:#dbe5ff;stroke-width:1.3;rx:16}.head{font:700 15px Arial,"Microsoft YaHei";fill:#14171f}.notehead{font:700 13px Arial,"Microsoft YaHei";fill:#2454d6}.txt{font:12.5px Arial,"Microsoft YaHei";fill:#555f73}.line{stroke:#2454d6;stroke-width:2;fill:none;marker-end:url(#a)}.dash{stroke:#2454d6;stroke-width:1.6;fill:none;stroke-dasharray:5 4;marker-end:url(#a)}</style><marker id="a" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M2,2 L10,6 L2,10" fill="#2454d6"/></marker></defs>
+  <rect width="1280" height="580" class="bg"/><text x="54" y="52" class="title">合规执行链路</text>
+
+  <text x="54" y="86" class="row">受理与检索</text>
+  <g transform="translate(54,96)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">提交申请</text><text x="18" y="58" class="txt">采购 / 系统权限</text><text x="18" y="82" class="txt">两类受控 Skill</text></g>
+  <g transform="translate(253,96)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">抽取字段</text><text x="18" y="58" class="txt">只从申请原话抽取</text><text x="18" y="82" class="txt">缺失保持空值</text></g>
+  <g transform="translate(452,96)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">申请人核对</text><text x="18" y="58" class="txt">每次申请都先停下</text><text x="18" y="82" class="txt">核对字段并补充材料</text></g>
+  <g transform="translate(651,96)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">检索制度</text><text x="18" y="58" class="txt">代码基线检索打底</text><text x="18" y="82" class="txt">模型自主补查角度</text></g>
+  <g transform="translate(870,96)"><rect width="360" height="100" class="note"/><text x="18" y="32" class="notehead">中断与恢复</text><text x="18" y="60" class="txt">停在对应环节，状态写入检查点</text><text x="18" y="84" class="txt">确认、补齐或审批后由 Worker 从断点继续</text></g>
+
+  <text x="54" y="246" class="row">判定与复核</text>
+  <g transform="translate(54,256)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">生成计划</text><text x="18" y="58" class="txt">依据来自制度证据</text><text x="18" y="82" class="txt">参数服务端绑定</text></g>
+  <g transform="translate(253,256)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">规则检查</text><text x="18" y="58" class="txt">金额档位与期限</text><text x="18" y="82" class="txt">不由模型判定</text></g>
+  <g transform="translate(452,256)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">独立复核</text><text x="18" y="58" class="txt">独立审计 Agent</text><text x="18" y="82" class="txt">无写工具，只审不改</text></g>
+  <g transform="translate(870,256)"><rect width="360" height="100" class="note"/><text x="18" y="32" class="notehead">复核不通过时</text><text x="18" y="60" class="txt">按意见逐项修订后重审，最多两轮</text><text x="18" y="84" class="txt">仍不通过转人工处理，不静默放行</text></g>
+
+  <text x="54" y="406" class="row">审批与登记</text>
+  <g transform="translate(54,416)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">人工审批</text><text x="18" y="58" class="txt">按风险触发</text><text x="18" y="82" class="txt">本企业管理员审批</text></g>
+  <g transform="translate(253,416)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">受控写入</text><text x="18" y="58" class="txt">仅创建内部登记</text><text x="18" y="82" class="txt">审批通过后执行</text></g>
+  <g transform="translate(452,416)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">核验归档</text><text x="18" y="58" class="txt">核验写入结果</text><text x="18" y="82" class="txt">生成执行档案</text></g>
+  <g transform="translate(870,416)"><rect width="360" height="100" class="note"/><text x="18" y="32" class="notehead">执行边界</text><text x="18" y="60" class="txt">只写内部登记记录，不真实下单、付款</text><text x="18" y="84" class="txt">或开通外部系统权限</text></g>
+
+  <path d="M231 146 L253 146" class="line"/><path d="M430 146 L452 146" class="line"/><path d="M629 146 L651 146" class="line"/><path d="M828 146 L870 146" class="dash"/>
+  <path d="M231 306 L253 306" class="line"/><path d="M430 306 L452 306" class="line"/><path d="M629 306 L870 306" class="dash"/>
+  <path d="M231 466 L253 466" class="line"/><path d="M430 466 L452 466" class="line"/><path d="M629 466 L870 466" class="dash"/>
+  <path d="M142.5 196 L142.5 256" class="line"/><path d="M142.5 356 L142.5 416" class="line"/>
+</svg>

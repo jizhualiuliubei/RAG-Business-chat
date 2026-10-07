@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-label="RAG 检索与生成链路">
+  <defs><style>.bg{fill:#ffffff}.title{font:700 28px Arial,"Microsoft YaHei";fill:#14171f}.row{font:700 13px Arial,"Microsoft YaHei";fill:#2454d6}.box{fill:white;stroke:#dbe5ff;stroke-width:1.5;rx:16}.head{font:700 15px Arial,"Microsoft YaHei";fill:#14171f}.txt{font:12.5px Arial,"Microsoft YaHei";fill:#555f73}.line{stroke:#2454d6;stroke-width:2;fill:none;marker-end:url(#a)}</style><marker id="a" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M2,2 L10,6 L2,10" fill="#2454d6"/></marker></defs>
+  <rect width="1280" height="400" class="bg"/><text x="54" y="52" class="title">RAG 检索与生成链路</text>
+
+  <text x="54" y="86" class="row">知识入库</text>
+  <g transform="translate(54,96)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">上传解析</text><text x="18" y="58" class="txt">多格式统一抽取</text><text x="18" y="82" class="txt">扫描件 OCR 兜底</text></g>
+  <g transform="translate(253,96)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">结构化切片</text><text x="18" y="58" class="txt">按语义单元成块</text><text x="18" y="82" class="txt">保留章节与条款结构</text></g>
+  <g transform="translate(452,96)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">向量入库</text><text x="18" y="58" class="txt">逐片向量化</text><text x="18" y="82" class="txt">按企业与知识库打标</text></g>
+
+  <text x="54" y="246" class="row">在线问答</text>
+  <g transform="translate(54,256)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">用户提问</text><text x="18" y="58" class="txt">员工口语提问</text><text x="18" y="82" class="txt">可能带条款号</text></g>
+  <g transform="translate(253,256)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">多 Query 改写</text><text x="18" y="58" class="txt">原问题 + 制度语体</text><text x="18" y="82" class="txt">章节与字段扩展</text></g>
+  <g transform="translate(452,256)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">混合检索</text><text x="18" y="58" class="txt">向量语义召回</text><text x="18" y="82" class="txt">BM25 关键词召回</text></g>
+  <g transform="translate(651,256)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">融合重排</text><text x="18" y="58" class="txt">双通道融合打分</text><text x="18" y="82" class="txt">cross-encoder 精排</text></g>
+  <g transform="translate(850,256)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">约束生成</text><text x="18" y="58" class="txt">引用编号溯源</text><text x="18" y="82" class="txt">无依据则拒答</text></g>
+  <g transform="translate(1049,256)"><rect width="177" height="100" class="box"/><text x="18" y="30" class="head">答案与引用</text><text x="18" y="58" class="txt">答案 + 编号引用</text><text x="18" y="82" class="txt">未命中说明边界</text></g>
+
+  <path d="M231 146 L253 146" class="line"/><path d="M430 146 L452 146" class="line"/>
+  <path d="M231 306 L253 306" class="line"/><path d="M430 306 L452 306" class="line"/><path d="M629 306 L651 306" class="line"/><path d="M828 306 L850 306" class="line"/><path d="M1027 306 L1049 306" class="line"/>
+  <path d="M540.5 196 L540.5 256" class="line"/>
+</svg>
